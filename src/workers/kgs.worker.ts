@@ -6,7 +6,7 @@ const POOL_MAX_SIZE = 50;
 const CHECK_INTERVAL_MS = 5000; // Check every 5 seconds
 
 const getPoolSize = async (): Promise<number> => {
-  const query = `SELECT COUNT(*) FROM key__pool`;
+  const query = `SELECT COUNT(*) FROM key_pool`;
   const result = await pool.query(query);
 
   return parseInt(result.rows[0].count, 10);

@@ -5,9 +5,11 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon --exec tsx src/index.ts",
+    "dev:worker": "nodemon --exec tsx src/workers/kgs.worker.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
-  },
+    "start:api": "node dist/index.js",
+    "start:worker": "node dist/workers/kgs.worker.ts"
+},
   "keywords": [],
   "author": "",
   "license": "ISC",
