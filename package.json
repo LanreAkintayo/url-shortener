@@ -8,7 +8,7 @@
     "dev:worker": "nodemon --exec tsx src/workers/kgs.worker.ts",
     "build": "tsc",
     "start:api": "node dist/index.js",
-    "start:worker": "node dist/workers/kgs.worker.ts"
+    "start:worker": "node dist/workers/kgs.worker.js"
 },
   "keywords": [],
   "author": "",
