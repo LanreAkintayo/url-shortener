@@ -1,0 +1,13 @@
+node_modules/
+
+.env
+
+# Compiled output
+dist/
+build/
+
+.notes.md
+db-test.ts
+
+.DS_Store
+Thumbs.db
