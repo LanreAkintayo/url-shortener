@@ -1,8 +1,9 @@
 import { pool } from "../config/db";
 import { nanoid } from "nanoid";
+import { getKeyFromPool } from "../workers/kgs.worker";
 
 export const createShortUrl = async (longUrl: string) => {
-  const shortCode = nanoid(8);
+  const shortCode = await getKeyFromPool();
 
   const query = `
         INSERT INTO urls (long_url, short_code)
