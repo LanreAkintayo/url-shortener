@@ -3,7 +3,7 @@ import { nanoid } from "nanoid";
 
 const POOL_MIN_SIZE = 10;
 const POOL_MAX_SIZE = 50;
-const CHECK_INTERVAL_MS = 5000; // Check every 5 seconds
+const CHECK_INTERVAL_MS = 60000; // Check every 60 seconds
 
 const getPoolSize = async (): Promise<number> => {
   const query = `SELECT COUNT(*) FROM key_pool`;
