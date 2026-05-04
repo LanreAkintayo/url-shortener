@@ -1,8 +1,13 @@
 import { registry } from './swagger';
-import { CreateUrlSchema, UrlResponseSchema, RedirectSchema } from '../types/url.types';
+import { 
+    CreateUrlSchema, 
+    UrlResponseSchema, 
+    RedirectSchema,
+    UpdateUrlSchema,
+    RemoveUrlSchema 
+} from '../types/url.types';
 
 export function registerUrlRoutes() {
-    // POST /shorten
     registry.registerPath({
         method: 'post',
         path: '/shorten',
@@ -31,7 +36,6 @@ export function registerUrlRoutes() {
         },
     });
 
-    // GET /:shortCode
     registry.registerPath({
         method: 'get',
         path: '/{shortCode}',
@@ -42,6 +46,55 @@ export function registerUrlRoutes() {
         responses: {
             301: {
                 description: 'Redirecting to original URL',
+            },
+            404: {
+                description: 'Short URL not found',
+            },
+        },
+    });
+
+    registry.registerPath({
+        method: 'put',
+        path: '/{shortCode}',
+        summary: 'Update an existing short URL',
+        request: {
+            params: UpdateUrlSchema.shape.params,
+            body: {
+                content: {
+                    'application/json': {
+                        schema: UpdateUrlSchema.shape.body,
+                    },
+                },
+            },
+        },
+        responses: {
+            200: {
+                description: 'URL updated successfully',
+                content: {
+                    'application/json': {
+                        schema: UrlResponseSchema,
+                    },
+                },
+            },
+            400: {
+                description: 'Validation failed',
+            },
+            404: {
+                description: 'Short URL not found',
+            },
+        },
+    });
+
+    registry.registerPath({
+        method: 'delete',
+        path: '/{shortCode}',
+        summary: 'Delete a short URL',
+        request: {
+            params: RemoveUrlSchema.shape.params,
+        },
+        responses: {
+            204: {
+                description: 'URL deleted successfully',
             },
             404: {
                 description: 'Short URL not found',

@@ -21,6 +21,24 @@ export const CreateUrlSchema = z.object({
   ),
 });
 
+
+export const UpdateUrlSchema = z.object({
+  body: z.object({
+    longUrl: z
+      .url({ error: "Invalid URL format. Must include http:// or https://" })
+      .openapi({ example: "https://google.com" }),
+  }),
+  params: z.object({
+    shortCode: z.string().openapi({ example: "abc123" }),
+  }),
+});
+
+export const RemoveUrlSchema = z.object({
+  params: z.object({
+    shortCode: z.string().openapi({ example: "abc123" }),
+  }),
+});
+
 export const UrlResponseSchema = z.object({
   status: z.string().openapi({ example: "success" }),
   message: z.string().openapi({ example: "URL shortened successfully" }),
@@ -35,8 +53,7 @@ export const UrlResponseSchema = z.object({
 export const RedirectSchema = z.object({
   params: z.object({
     shortCode: z.string().openapi({ example: "abc123" }),
-  }),   
+  }),
 });
-
 
 export type CreateUrlInput = z.infer<typeof CreateUrlSchema>["body"];

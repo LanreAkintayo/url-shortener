@@ -60,9 +60,52 @@ export const redirectUrl = async (
 
     res.redirect(urlRecord.long_url);
   } catch (error) {
-    console.log(
-        "An error happened: ", error
-    )
+    console.log("An error happened: ", error);
+    next(error);
+  }
+};
+
+export const updateUrl = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const { shortCode } = req.params;
+    const { longUrl } = req.body as CreateUrlInput;
+
+    const updatedUrl = await urlService.updateOriginalUrl(shortCode, longUrl);
+
+    return res.status(200).json({
+      status: "success",
+      message: "URL updated successfully",
+      data: {
+        id: updatedUrl.id,
+        longUrl: updatedUrl.long_url,
+        shortCode: updatedUrl.short_code,
+        createdAt: updatedUrl.created_at,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const removeUrl = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const { shortCode } = req.params;
+
+    await urlService.deleteUrl(shortCode);
+
+    return res.status(200).json({
+      status: "success",
+      message: "URL removed successfully",
+    });
+  } catch (error) {
     next(error);
   }
 };
