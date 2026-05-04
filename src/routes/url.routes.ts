@@ -12,6 +12,7 @@ import {
   RemoveUrlSchema,
   UpdateUrlSchema,
 } from "../types/url.types";
+import { rateLimiter } from "../middleware/rateLimiter";
 
 export const apiRouter = Router();
 export const redirectRouter = Router();
@@ -19,6 +20,6 @@ export const redirectRouter = Router();
 // It has to be shorter
 redirectRouter.get("/:shortCode", validate(RedirectSchema), redirectUrl);
 
-apiRouter.post("/shorten", validate(CreateUrlSchema), shortenUrl);
+apiRouter.post("/shorten", rateLimiter, validate(CreateUrlSchema), shortenUrl);
 apiRouter.put("/:shortCode", validate(UpdateUrlSchema), updateUrl);
 apiRouter.delete("/:shortCode", validate(RemoveUrlSchema), removeUrl);
