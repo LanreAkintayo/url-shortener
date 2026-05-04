@@ -36,22 +36,22 @@ export function registerUrlRoutes() {
         },
     });
 
-    registry.registerPath({
-        method: 'get',
-        path: '/{shortCode}',
-        summary: 'Redirect to original URL',
-        request: {
-            params: RedirectSchema.shape.params,
-        },
-        responses: {
-            301: {
-                description: 'Redirecting to original URL',
-            },
-            404: {
-                description: 'Short URL not found',
-            },
-        },
-    });
+    // registry.registerPath({
+    //     method: 'get',
+    //     path: '/{shortCode}',
+    //     summary: 'Redirect to original URL',
+    //     request: {
+    //         params: RedirectSchema.shape.params,
+    //     },
+    //     responses: {
+    //         301: {
+    //             description: 'Redirecting to original URL',
+    //         },
+    //         404: {
+    //             description: 'Short URL not found',
+    //         },
+    //     },
+    // });
 
     registry.registerPath({
         method: 'put',

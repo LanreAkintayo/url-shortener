@@ -13,11 +13,12 @@ import {
   UpdateUrlSchema,
 } from "../types/url.types";
 
-const router = Router();
+export const apiRouter = Router();
+export const redirectRouter = Router();
 
-router.post("/shorten", validate(CreateUrlSchema), shortenUrl);
-router.get("/:shortCode", validate(RedirectSchema), redirectUrl);
-router.put("/:shortCode", validate(UpdateUrlSchema), updateUrl);
-router.delete("/:shortCode", validate(RemoveUrlSchema), removeUrl);
+// It has to be shorter
+redirectRouter.get("/:shortCode", validate(RedirectSchema), redirectUrl);
 
-export default router;
+apiRouter.post("/shorten", validate(CreateUrlSchema), shortenUrl);
+apiRouter.put("/:shortCode", validate(UpdateUrlSchema), updateUrl);
+apiRouter.delete("/:shortCode", validate(RemoveUrlSchema), removeUrl);

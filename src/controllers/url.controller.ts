@@ -17,7 +17,7 @@ export const shortenUrl = async (
 
     const newUrl = await urlService.createShortUrl(longUrl);
 
-    const baseUrl = process.env.BASE_URL || "http://localhost:3000/api";
+    const baseUrl = process.env.BASE_URL || "http://localhost:3000";
     const fullShortUrl = `${baseUrl}/${newUrl.short_code}`;
 
     res.status(201).json({
@@ -43,6 +43,7 @@ export const redirectUrl = async (
   try {
     const { shortCode } = req.params;
 
+    console.log("Short code received for redirection: ", shortCode);
     const urlRecord = await urlService.getUrlByShortCode(shortCode);
 
     if (!urlRecord) {

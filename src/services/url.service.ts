@@ -32,6 +32,8 @@ export const getUrlByShortCode = async (shortCode: string | string[]) => {
 
   const result = await pool.query(query, values);
 
+  console.log("Database query result for short code ", shortCode, ": ", result);
+
   if (result.rows.length === 0) {
     return null;
   }
@@ -73,8 +75,15 @@ export const deleteUrl = async (shortCode: string | string[]) => {
   const query = `DELETE FROM urls WHERE short_code = $1 RETURNING *;`;
   const values = [shortCode];
 
-  await pool.query(query, values);
+  const result = await pool.query(query, values);
 
+  console.log("Delete result: ", result);
+
+  if (result.rowCount === 0) {
+    throw new Error("URL not found");
+  }
+
+  // Invalidate cache
   await redisClient.del(`url:${shortCode}`);
 
   return true;

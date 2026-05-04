@@ -1,22 +1,29 @@
-import { OpenAPIRegistry, OpenApiGeneratorV3 } from '@asteasolutions/zod-to-openapi';
+import {
+  OpenAPIRegistry,
+  OpenApiGeneratorV3,
+} from "@asteasolutions/zod-to-openapi";
 
 export const registry = new OpenAPIRegistry();
 
 export function generateOpenAPIDocument() {
-    const generator = new OpenApiGeneratorV3(registry.definitions);
+  const generator = new OpenApiGeneratorV3(registry.definitions);
 
-    return generator.generateDocument({
-        openapi: '3.0.0',
-        info: {
-            title: 'URL Shortener API',
-            version: '1.0.0',
-            description: 'A simple URL shortener API',
-        },
-        servers: [
-            {
-                url: '/api',
-                description: 'Local server',
-            },
-        ],
-    });
+  return generator.generateDocument({
+    openapi: "3.0.0",
+    info: {
+      title: "URL Shortener API",
+      version: "1.0.0",
+      description: "A simple URL shortener API with Redis Caching and KGS",
+    },
+    servers: [
+      {
+        url: `${process.env.SHORTENER_URL}/api` || "localhost:3000/api",
+        description: "Shortener server",
+      },
+      {
+        url: `${process.env.BASE_URL}/api` || "http://localhost:3000/api",
+        description: " Development Shortener server",
+      },
+    ],
+  });
 }

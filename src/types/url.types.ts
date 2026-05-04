@@ -21,7 +21,6 @@ export const CreateUrlSchema = z.object({
   ),
 });
 
-
 export const UpdateUrlSchema = z.object({
   body: z.object({
     longUrl: z
@@ -29,13 +28,17 @@ export const UpdateUrlSchema = z.object({
       .openapi({ example: "https://google.com" }),
   }),
   params: z.object({
-    shortCode: z.string().openapi({ example: "abc123" }),
+    shortCode: z
+      .string({ error: "shortCode is required" })
+      .openapi({ example: "abc123" }),
   }),
 });
 
 export const RemoveUrlSchema = z.object({
   params: z.object({
-    shortCode: z.string().openapi({ example: "abc123" }),
+    shortCode: z
+      .string({ error: "shortCode is required" })
+      .openapi({ example: "abc123" }),
   }),
 });
 
@@ -52,7 +55,7 @@ export const UrlResponseSchema = z.object({
 
 export const RedirectSchema = z.object({
   params: z.object({
-    shortCode: z.string().openapi({ example: "abc123" }),
+    shortCode: z.string({ error: "shortCode is required" }).openapi({ example: "abc123" }),
   }),
 });
 
