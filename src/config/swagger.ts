@@ -17,12 +17,11 @@ export function generateOpenAPIDocument() {
     },
     servers: [
       {
-        url: `${process.env.SHORTENER_URL}/api` || "localhost:3000/api",
+        url:
+          process.env.NODE_ENV === "production"
+            ? `${process.env.SHORTENER_URL}/api` || "localhost:3000/api"
+            : `${process.env.BASE_URL}/api` || "http://localhost:3000/api",
         description: "Shortener server",
-      },
-      {
-        url: `${process.env.BASE_URL}/api` || "http://localhost:3000/api",
-        description: " Development Shortener server",
       },
     ],
   });
