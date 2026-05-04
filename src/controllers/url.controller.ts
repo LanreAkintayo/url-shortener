@@ -17,7 +17,10 @@ export const shortenUrl = async (
 
     const newUrl = await urlService.createShortUrl(longUrl);
 
-    const baseUrl = process.env.BASE_URL || "http://localhost:3000";
+    const baseUrl = process.env.NODE_ENV === "production"
+      ? process.env.SHORTENER_URL
+      : process.env.BASE_URL || "http://localhost:3000";
+    // const baseUrl = process.env.BASE_URL || "http://localhost:3000";
     const fullShortUrl = `${baseUrl}/${newUrl.short_code}`;
 
     res.status(201).json({
