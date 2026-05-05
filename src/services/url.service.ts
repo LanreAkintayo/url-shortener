@@ -21,7 +21,7 @@ export const getUrlByShortCode = async (shortCode: string | string[]) => {
   const cachedUrl = await redisClient.get(`url:${shortCode}`);
 
   if (cachedUrl) {
-    return cachedUrl;
+    return {long_url: cachedUrl};
   }
 
   const query = `

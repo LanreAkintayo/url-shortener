@@ -12,6 +12,7 @@ export const pool = new Pool({
 })
 
 
+// A potential issue here. I will revisit.
 pool.on("connect", () => {
     console.log("Connected to the database");
 });
