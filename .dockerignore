@@ -7,7 +7,7 @@ tests/
 .env.*
 *.md
 jest.config.js
-tsconfig.json
+
 docker-compose.yml
 Dockerfile*
 .notes.md
