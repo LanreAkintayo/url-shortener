@@ -1,0 +1,13 @@
+.git
+.gitignore
+node_modules/
+dist/
+tests/
+.env
+.env.*
+*.md
+jest.config.js
+tsconfig.json
+docker-compose.yml
+Dockerfile*
+.notes.md
