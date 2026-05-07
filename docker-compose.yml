@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -40,15 +40,33 @@ services:
       timeout: 10s
       retries: 10
 
+  migrator:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+      target: builder # We use the builder stage because it has Drizzle installed!
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["npx", "drizzle-kit", "push", "--force"]
+
   api:
     build:
       context: .
       dockerfile: Dockerfile.api
+      target: builder
     ports:
       - "3000:3000"
     env_file:
       - .env
+    volumes:
+      - ./src:/app/src
+    command: ["npm", "run", "dev"]
     depends_on:
+      migrator:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
@@ -60,11 +78,17 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.kgs
+      target: builder
     env_file:
       - .env
+    volumes:
+      - ./src:/app/src
+    command: ["npm", "run", "dev:kgs_worker"]
     depends_on:
+      migrator:
+        condition: service_completed_successfully
       postgres:
-        condition: service_healthy
+        condition: service_healthy 
       redis:
         condition: service_healthy
       rabbitmq:
@@ -74,9 +98,15 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.analytics
+      target: builder
     env_file:
       - .env
+    volumes: 
+      - ./src:/app/src
+    command: ["npm", "run", "dev:analytics_worker"]
     depends_on:
+      migrator:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:

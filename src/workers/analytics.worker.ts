@@ -1,6 +1,5 @@
 import amqp from "amqplib";
 import { connectRabbitMQ } from "../config/rabbitmq";
-import { pool } from "../config/db";
 import * as analyticsService from "../services/analytics.service";
 
 interface AnalyticsPayload {
@@ -121,3 +120,11 @@ const handleGracefulShutdown = async (): Promise<void> => {
   console.log("[Worker] Memory flushed. Exiting process safely.");
   process.exit(0);
 };
+
+
+if (require.main === module) {
+  startAnalyticsWorker().catch((error) => {
+    console.error("[Worker] Failed to start analytics worker:", error);
+    process.exit(1);
+  });
+}

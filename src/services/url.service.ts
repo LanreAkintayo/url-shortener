@@ -1,10 +1,9 @@
 import { pool } from "../config/db";
-import { nanoid } from "nanoid";
-import { getKeyFromPool } from "../workers/kgs.worker";
 import redisClient from "../config/redis";
+import { getShortCode } from "./kgs.service";
 
 export const createShortUrl = async (longUrl: string) => {
-  const shortCode = await getKeyFromPool();
+  const shortCode = await getShortCode();
 
   const query = `
         INSERT INTO urls (long_url, short_code)
