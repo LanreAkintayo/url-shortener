@@ -27,7 +27,7 @@ const initKgsState = async () => {
 };
 
 const getPoolSize = async (): Promise<number> => {
-  const result = await db.read.execute(sql`SELECT COUNT(*) as count FROM key_pool`);
+  const result = await db.write.execute(sql`SELECT COUNT(*) as count FROM key_pool`);
   return parseInt(result.rows[0].count as string, 10);
 };
 

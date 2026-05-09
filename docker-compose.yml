@@ -17,6 +17,7 @@ services:
         interval: 5s
         timeout: 5s
         retries: 5
+
   postgres-replica:
     image: bitnami/postgresql:latest
     depends_on:
@@ -26,7 +27,7 @@ services:
       - POSTGRESQL_USERNAME=${DB_USER}
       - POSTGRESQL_PASSWORD=${DB_PASSWORD}
       - POSTGRESQL_REPLICATION_MODE=slave
-      - POSTGRESQL_REPLICATION_MODE_MASTER_HOST=postgres
+      - POSTGRESQL_MASTER_HOST=postgres
       - POSTGRESQL_REPLICATION_USER=repl_user
       - POSTGRESQL_REPLICATION_PASSWORD=repl_password
     volumes:
