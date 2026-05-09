@@ -48,7 +48,7 @@ export const UrlResponseSchema = z.object({
   data: z.object({
     id: z.number().openapi({ example: 1 }),
     longUrl: z.string().openapi({ example: "https://google.com" }),
-    shortUrl: z.string().openapi({ example: "http://localhost:3000/abc123" }),
+    shortUrl: z.string().openapi({ example: "http://localhost:8080/abc123" }),
     createdAt: z.string().openapi({ example: "2024-06-01T12:00:00Z" }),
   }),
 });

@@ -32,6 +32,12 @@ services:
       - POSTGRESQL_REPLICATION_PASSWORD=repl_password
     volumes:
       - postgres_replica_data:/bitnami/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
 
   pgbouncer:
     image: edoburu/pgbouncer:latest
@@ -123,6 +129,8 @@ services:
         condition: service_completed_successfully
       postgres:
         condition: service_healthy
+      postgres-replica:
+        condition: service_healthy
       redis:
         condition: service_healthy
       rabbitmq:
@@ -145,6 +153,8 @@ services:
         condition: service_completed_successfully
       postgres:
         condition: service_healthy 
+      postgres-replica:
+        condition: service_healthy
       redis:
         condition: service_healthy
       rabbitmq:
@@ -164,6 +174,8 @@ services:
       migrator:
         condition: service_completed_successfully
       postgres:
+        condition: service_healthy
+      postgres-replica:
         condition: service_healthy
       redis:
         condition: service_healthy

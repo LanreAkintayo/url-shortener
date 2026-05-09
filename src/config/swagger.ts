@@ -19,8 +19,8 @@ export function generateOpenAPIDocument() {
       {
         url:
           process.env.NODE_ENV === "production"
-            ? `${process.env.SHORTENER_URL}/api` || "localhost:3000/api"
-            : `${process.env.BASE_URL}/api` || "http://localhost:3000/api",
+            ? `${process.env.SHORTENER_URL}/api` || "localhost:8080/api"
+            : `${process.env.BASE_URL}/api` || "http://localhost:8080/api",
         description: "Shortener server",
       },
     ],

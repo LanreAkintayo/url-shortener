@@ -20,7 +20,7 @@ export const shortenUrl = async (
     const baseUrl =
       process.env.NODE_ENV === "production"
         ? process.env.SHORTENER_URL
-        : process.env.BASE_URL || "http://localhost:3000";
+        : process.env.BASE_URL || "http://localhost:8080";
     // const baseUrl = process.env.BASE_URL || "http://localhost:3000";
     const fullShortUrl = `${baseUrl}/${newUrl.shortCode}`;
 
