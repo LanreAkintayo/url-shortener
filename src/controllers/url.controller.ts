@@ -1,6 +1,5 @@
 import { NextFunction, Request, Response } from "express";
 import { nanoid } from "nanoid";
-import { pool } from "../config/db";
 import * as urlService from "../services/url.service";
 import { CreateUrlInput } from "../types/url.types";
 import { connectRabbitMQ } from "../config/rabbitmq";
@@ -23,16 +22,16 @@ export const shortenUrl = async (
         ? process.env.SHORTENER_URL
         : process.env.BASE_URL || "http://localhost:3000";
     // const baseUrl = process.env.BASE_URL || "http://localhost:3000";
-    const fullShortUrl = `${baseUrl}/${newUrl.short_code}`;
+    const fullShortUrl = `${baseUrl}/${newUrl.shortCode}`;
 
     res.status(201).json({
       status: "success",
       message: "URL shortened successfully",
       data: {
         id: newUrl.id,
-        longUrl: newUrl.long_url,
+        longUrl: newUrl.longUrl,
         shortUrl: fullShortUrl,
-        createdAt: newUrl.created_at,
+        createdAt: newUrl.createdAt,
       },
     });
   } catch (error) {
@@ -51,7 +50,7 @@ export const redirectUrl = async (
     console.log("Short code received for redirection: ", shortCode);
     const urlRecord = await urlService.getUrlByShortCode(shortCode);
 
-    if (!urlRecord.long_url) {
+    if (!urlRecord?.longUrl) {
       res.status(404).json({
         status: "error",
         message: "URL not found",
@@ -79,7 +78,7 @@ export const redirectUrl = async (
       console.error("Failed to send analytics data to RabbitMQ:", mqError);
     }
 
-    res.redirect(urlRecord.long_url);
+    res.redirect(urlRecord.longUrl);
   } catch (error) {
     console.log("An error happened: ", error);
     next(error);
@@ -102,9 +101,9 @@ export const updateUrl = async (
       message: "URL updated successfully",
       data: {
         id: updatedUrl.id,
-        longUrl: updatedUrl.long_url,
-        shortCode: updatedUrl.short_code,
-        createdAt: updatedUrl.created_at,
+        longUrl: updatedUrl.longUrl,
+        shortCode: updatedUrl.shortCode,
+        createdAt: updatedUrl.createdAt,
       },
     });
   } catch (error) {

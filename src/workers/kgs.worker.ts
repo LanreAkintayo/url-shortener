@@ -13,7 +13,7 @@ const hashids = new Hashids(SECRET_SALT, 6);
 const initKgsState = async () => {
   try {
     await db
-      .insert(kgsState)
+      .write.insert(kgsState)
       .values({
         id: 1,
         currentCounter: 1000000,
@@ -27,7 +27,7 @@ const initKgsState = async () => {
 };
 
 const getPoolSize = async (): Promise<number> => {
-  const result = await db.execute(sql`SELECT COUNT(*) as count FROM key_pool`);
+  const result = await db.read.execute(sql`SELECT COUNT(*) as count FROM key_pool`);
   return parseInt(result.rows[0].count as string, 10);
 };
 
@@ -39,7 +39,7 @@ const refillPool = async () => {
 
     const countToGenerate = POOL_MAX_SIZE - currentSize;
 
-    const claimResult = await db.execute(sql`
+    const claimResult = await db.write.execute(sql`
       UPDATE kgs_state 
       SET 
         current_counter = current_counter + ${countToGenerate},
@@ -61,7 +61,7 @@ const refillPool = async () => {
       newKeys.push({ shortCode: hashids.encode(uniqueNumber) });
     }
 
-    await db.insert(keyPool).values(newKeys);
+    await db.write.insert(keyPool).values(newKeys);
     console.log(
       `[KGS] Generated ${countToGenerate} new keys. Pool replenished.`,
     );

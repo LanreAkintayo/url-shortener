@@ -1,89 +1,84 @@
-import { pool } from "../config/db";
+import { db } from "../config/db";
 import redisClient from "../config/redis";
+import { urls } from "../db/schema";
 import { getShortCode } from "./kgs.service";
+import { eq } from "drizzle-orm";
 
 export const createShortUrl = async (longUrl: string) => {
   const shortCode = await getShortCode();
 
-  const query = `
-        INSERT INTO urls (long_url, short_code)
-        VALUES ($1, $2)
-        RETURNING id, long_url, short_code, created_at;
-    `;
-  const values = [longUrl, shortCode];
+  const [newUrlRecord] = await db.write
+    .insert(urls)
+    .values({ longUrl, shortCode })
+    .returning({
+      id: urls.id,
+      longUrl: urls.longUrl,
+      shortCode: urls.shortCode,
+      createdAt: urls.createdAt,
+    });
 
-  const result = await pool.query(query, values);
-  return result.rows[0];
+  return newUrlRecord;
 };
 
 export const getUrlByShortCode = async (shortCode: string | string[]) => {
+  const code = Array.isArray(shortCode) ? shortCode[0] : shortCode;
+
   const cachedUrl = await redisClient.get(`url:${shortCode}`);
 
   if (cachedUrl) {
-    return {long_url: cachedUrl};
+    return { longUrl: cachedUrl };
   }
 
-  const query = `
-    SELECT long_url FROM urls
-    WHERE short_code = $1;
-    `;
-  const values = [shortCode];
+  const [urlRecord] = await db.read
+    .select({ longUrl: urls.longUrl })
+    .from(urls)
+    .where(eq(urls.shortCode, code))
+    .limit(1);
 
-  const result = await pool.query(query, values);
-
-  console.log("Database query result for short code ", shortCode, ": ", result);
-
-  if (result.rows.length === 0) {
+  if (!urlRecord) {
     return null;
   }
 
-  const longUrl = result.rows[0].long_url;
-
-  await redisClient.set(`url:${shortCode}`, longUrl, {
+  await redisClient.set(`url:${shortCode}`, urlRecord.longUrl, {
     EX: 60 * 60 * 24, // Cache for 24 hours
   });
 
-  return result.rows[0];
+  return { longUrl: urlRecord.longUrl };
 };
 
 export const updateOriginalUrl = async (
   shortCode: string | string[],
   newLongUrl: string,
 ) => {
-  const query = `
-  UPDATE urls
-  SET long_url = $1
-  WHERE short_code = $2
-  RETURNING *;
-  `;
-  const values = [newLongUrl, shortCode];
+  const code = Array.isArray(shortCode) ? shortCode[0] : shortCode;
 
-  const result = await pool.query(query, values);
+  const [updatedUrlRecord] = await db.write
+    .update(urls)
+    .set({ longUrl: newLongUrl })
+    .where(eq(urls.shortCode, code))
+    .returning();
 
-  if (result.rowCount === 0) {
+  if (!updatedUrlRecord) {
     throw new Error("URL not found");
   }
 
   // Invalidate cache
   await redisClient.del(`url:${shortCode}`);
 
-  return result.rows[0];
+  return updatedUrlRecord;
 };
 
 export const deleteUrl = async (shortCode: string | string[]) => {
-  const query = `DELETE FROM urls WHERE short_code = $1 RETURNING *;`;
-  const values = [shortCode];
+  const code = Array.isArray(shortCode) ? shortCode[0] : shortCode;
 
-  const result = await pool.query(query, values);
+  const [deletedUrlRecord] = await db.write.delete(urls).where(eq(urls.shortCode, code)).returning();
 
-  console.log("Delete result: ", result);
-
-  if (result.rowCount === 0) {
+  if (!deletedUrlRecord) {
     throw new Error("URL not found");
   }
 
   // Invalidate cache
-  await redisClient.del(`url:${shortCode}`);
+  await redisClient.del(`url:${code}`);
 
   return true;
 };

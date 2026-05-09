@@ -1,22 +1,57 @@
 services:
   postgres:
-    image: postgres:16-alpine
+      image: bitnami/postgresql:latest
+      ports:
+        - "5433:5432"
+      environment:
+        - POSTGRESQL_USERNAME=${DB_USER}
+        - POSTGRESQL_PASSWORD=${DB_PASSWORD}
+        - POSTGRESQL_DATABASE=${DB_NAME}
+        - POSTGRESQL_REPLICATION_MODE=master
+        - POSTGRESQL_REPLICATION_USER=repl_user
+        - POSTGRESQL_REPLICATION_PASSWORD=repl_password
+      volumes:
+        - postgres_primary_data:/bitnami/postgresql
+      healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+        interval: 5s
+        timeout: 5s
+        retries: 5
+  postgres-replica:
+    image: bitnami/postgresql:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_NAME}
-    ports:
-      - "5433:5432"
+      - POSTGRESQL_USERNAME=${DB_USER}
+      - POSTGRESQL_PASSWORD=${DB_PASSWORD}
+      - POSTGRESQL_REPLICATION_MODE=slave
+      - POSTGRESQL_REPLICATION_MODE_MASTER_HOST=postgres
+      - POSTGRESQL_REPLICATION_USER=repl_user
+      - POSTGRESQL_REPLICATION_PASSWORD=repl_password
     volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-  
+      - postgres_replica_data:/bitnami/postgresql
+
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: pgbouncer
+    restart: always
+    environment:
+      DB_HOST: postgres
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 1000
+      DEFAULT_POOL_SIZE: 5
+      AUTH_TYPE: scram-sha-256 
+    ports:
+      - "6432:5432" 
+    depends_on:
+      - postgres
   pgadmin:
     image: dpage/pgadmin4
+    profiles:
+      - tools
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
@@ -63,13 +98,20 @@ services:
         condition: service_healthy
     command: ["npx", "drizzle-kit", "push", "--force"]
 
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api
+   
   api:
     build:
       context: .
       dockerfile: Dockerfile.api
       target: builder
-    ports:
-      - "3000:3000"
     env_file:
       - .env
     volumes:
@@ -84,6 +126,8 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    deploy:
+      replicas: 3
 
   kgs_worker:
     build:
@@ -125,7 +169,9 @@ services:
       rabbitmq:
         condition: service_healthy
 
+
 volumes:
-  pgdata:
+  postgres_primary_data:
+  postgres_replica_data:
   redisdata:
   rmqdata:

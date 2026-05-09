@@ -1,5 +1,5 @@
-import { pool } from "../config/db";
-
+import { db } from "../config/db";
+import { urlAnalytics } from "../db/schema";
 
 interface BatchAnalyticsData {
   shortCodes: string[];
@@ -12,24 +12,15 @@ interface BatchAnalyticsData {
 export const logBatchAnalytics = async (
   data: BatchAnalyticsData,
 ): Promise<void> => {
-    // Using UNNEST for batch insertion to optimize performance and reduce the number of individual insert queries.
-    
-  const query = `
-      INSERT INTO url_analytics (short_code, ip_address, user_agent, referrer, created_at)
-      SELECT * FROM UNNEST (
-        $1::varchar[],
-        $2::varchar[],
-        $3::text[],
-        $4::varchar[],
-        $5::timestamptz[]
-      )
-    `;
+  if (!data.shortCodes?.length) return;
 
-  await pool.query(query, [
-    data.shortCodes,
-    data.ipAddresses,
-    data.userAgents,
-    data.referrers,
-    data.timestamps,
-  ]);
+  const analyticsPayload = data.shortCodes.map((shortCode, index) => ({
+    shortCode,
+    ipAddress: data.ipAddresses[index],
+    userAgent: data.userAgents[index],
+    referrer: data.referrers[index],
+    createdAt: data.timestamps[index],
+  }));
+
+  await db.write.insert(urlAnalytics).values(analyticsPayload);
 };

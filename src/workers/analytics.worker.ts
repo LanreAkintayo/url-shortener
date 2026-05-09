@@ -32,7 +32,7 @@ export const startAnalyticsWorker = async (): Promise<void> => {
     channel.consume("analytics_queue", (msg) => {
       if (!msg) return;
 
-      console.log("Message received in worker:", msg);
+      // console.log("Message received in worker:", msg);
 
       try {
         const payload: AnalyticsPayload = JSON.parse(msg.content.toString());

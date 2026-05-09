@@ -5,24 +5,28 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-export const pool = new Pool({
-    user: process.env.DB_USER,
-    host: process.env.DB_HOST,
-    database: process.env.DB_NAME,
-    password: process.env.DB_PASSWORD,
-    port: Number(process.env.DB_PORT) || 5432,
+const writePool = new Pool({
+    connectionString: process.env.DATABASE_URL,
 });
 
-
-export const db = drizzle(pool, { schema }); 
-
-
-// A potential issue is here. I will revisi
-pool.on("connect", () => {
-    console.log("Connected to the database");
+const readPool = new Pool({
+    connectionString: process.env.REPLICA_DATABASE_URL,
 });
 
-pool.on("error", (err) => {
-    console.error("Database connection error:", err);
+export const db = {
+    write: drizzle(writePool, { schema }),
+    read: drizzle(readPool, { schema }), 
+};
+
+writePool.on("connect", () => console.log("Primary DB connection established"));
+readPool.on("connect", () => console.log("Replica DB connection established"));
+
+writePool.on("error", (err) => {
+    console.error("Primary DB connection error:", err);
+    process.exit(-1);
+});
+
+readPool.on("error", (err) => {
+    console.error("Replica DB connection error:", err);
     process.exit(-1);
 });

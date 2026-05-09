@@ -15,7 +15,7 @@ export const urls = pgTable("urls", {
   id: serial("id").primaryKey().notNull(),
   longUrl: text("long_url").notNull(),
   shortCode: varchar("short_code", { length: 8 }).notNull().unique(),
-  createAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
     .default(sql`CURRENT_TIMESTAMP`)
     .notNull(), 
 });

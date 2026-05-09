@@ -21,7 +21,7 @@ export const getShortCode = async (): Promise<string> => {
     RETURNING short_code
   `;
 
-  const poolResult = await db.execute(poolQuery);
+  const poolResult = await db.write.execute(poolQuery);
 
   if (poolResult.rows.length > 0) {
     // console.log("[KGS Service] Pool hit. Remaining keys:",  );
@@ -38,7 +38,7 @@ export const getShortCode = async (): Promise<string> => {
     RETURNING current_counter
   `;
 
-  const fallbackResult = await db.execute(fallbackQuery);
+  const fallbackResult = await db.write.execute(fallbackQuery);
   const counterValue = Number(fallbackResult.rows[0].current_counter);
 
   return hashids.encode(counterValue);
