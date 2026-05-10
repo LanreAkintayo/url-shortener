@@ -3,8 +3,8 @@ import { sql } from "drizzle-orm";
 import Hashids from "hashids";
 import { dbNode1 } from "../config/db";
 
-const POOL_MIN_SIZE = 10;
-const POOL_MAX_SIZE = 50;
+const POOL_MIN_SIZE = 1;
+const POOL_MAX_SIZE = 5;
 const CHECK_INTERVAL_MS = 60000;
 
 const SECRET_SALT = process.env.HASHIDS_SALT || "default_dev_salt";

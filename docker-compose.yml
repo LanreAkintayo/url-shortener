@@ -104,6 +104,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      postgres-node-2:
+        condition: service_healthy
 
   redis:
     image: redis:7-alpine
@@ -148,7 +150,7 @@ services:
       dockerfile: Dockerfile.api
       target: builder 
     environment:
-      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@postgres-node-2:${DB_PORT}/${DB_NAME}
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@postgres-node-2:5432/${DB_NAME}
     depends_on:
       postgres-node-2:
         condition: service_healthy

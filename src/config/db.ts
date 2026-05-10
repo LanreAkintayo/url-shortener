@@ -49,6 +49,7 @@ poolNode2.on("error", (err) => {
 
 export const getShardId = (shortCode: string): number => {
   const decoded = hashids.decode(shortCode);
+  console.log("Decoded short code: ", decoded);
 
   if (!decoded || decoded.length === 0) {
     console.warn(`[Router] Invalid code ${shortCode}. Defaulting to Shard 1.`);
@@ -56,6 +57,8 @@ export const getShardId = (shortCode: string): number => {
   }
 
   const explicitlySavedShardId = Number(decoded[1]);
+  console.log("Explicitly saved shard ID: ", explicitlySavedShardId);
+  
   return explicitlySavedShardId || 1;
 };
 
@@ -65,5 +68,6 @@ export const getDbByShardId = (shardId: number) => {
 
 export const getDbShard = (shortCode: string) => {
   const shardId = getShardId(shortCode);
+  console.log("Shard ID: ", shardId);
   return getDbByShardId(shardId);
 };
