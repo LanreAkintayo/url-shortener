@@ -1,4 +1,4 @@
-import { db } from "../config/db";
+import { getDbShard } from "../config/db";
 import redisClient from "../config/redis";
 import { urls } from "../db/schema";
 import { getShortCode } from "./kgs.service";
@@ -6,8 +6,10 @@ import { eq } from "drizzle-orm";
 
 export const createShortUrl = async (longUrl: string) => {
   const shortCode = await getShortCode();
+  
+  const targetDb = getDbShard(shortCode);
 
-  const [newUrlRecord] = await db.write
+  const [newUrlRecord] = await targetDb.write
     .insert(urls)
     .values({ longUrl, shortCode })
     .returning({
@@ -23,13 +25,15 @@ export const createShortUrl = async (longUrl: string) => {
 export const getUrlByShortCode = async (shortCode: string | string[]) => {
   const code = Array.isArray(shortCode) ? shortCode[0] : shortCode;
 
-  const cachedUrl = await redisClient.get(`url:${shortCode}`);
+  const cachedUrl = await redisClient.get(`url:${code}`);
 
   if (cachedUrl) {
     return { longUrl: cachedUrl };
   }
 
-  const [urlRecord] = await db.read
+  const targetDb = getDbShard(code);
+
+  const [urlRecord] = await targetDb.read
     .select({ longUrl: urls.longUrl })
     .from(urls)
     .where(eq(urls.shortCode, code))
@@ -39,7 +43,7 @@ export const getUrlByShortCode = async (shortCode: string | string[]) => {
     return null;
   }
 
-  await redisClient.set(`url:${shortCode}`, urlRecord.longUrl, {
+  await redisClient.set(`url:${code}`, urlRecord.longUrl, {
     EX: 60 * 60 * 24, // Cache for 24 hours
   });
 
@@ -51,8 +55,10 @@ export const updateOriginalUrl = async (
   newLongUrl: string,
 ) => {
   const code = Array.isArray(shortCode) ? shortCode[0] : shortCode;
+  
+  const targetDb = getDbShard(code);
 
-  const [updatedUrlRecord] = await db.write
+  const [updatedUrlRecord] = await targetDb.write
     .update(urls)
     .set({ longUrl: newLongUrl })
     .where(eq(urls.shortCode, code))
@@ -63,15 +69,20 @@ export const updateOriginalUrl = async (
   }
 
   // Invalidate cache
-  await redisClient.del(`url:${shortCode}`);
+  await redisClient.del(`url:${code}`);
 
   return updatedUrlRecord;
 };
 
 export const deleteUrl = async (shortCode: string | string[]) => {
   const code = Array.isArray(shortCode) ? shortCode[0] : shortCode;
+  
+  const targetDb = getDbShard(code);
 
-  const [deletedUrlRecord] = await db.write.delete(urls).where(eq(urls.shortCode, code)).returning();
+  const [deletedUrlRecord] = await targetDb.write
+    .delete(urls)
+    .where(eq(urls.shortCode, code))
+    .returning();
 
   if (!deletedUrlRecord) {
     throw new Error("URL not found");

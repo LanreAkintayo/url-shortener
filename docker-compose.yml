@@ -7,9 +7,9 @@ services:
         - POSTGRESQL_USERNAME=${DB_USER}
         - POSTGRESQL_PASSWORD=${DB_PASSWORD}
         - POSTGRESQL_DATABASE=${DB_NAME}
-        - POSTGRESQL_REPLICATION_MODE=master
-        - POSTGRESQL_REPLICATION_USER=repl_user
-        - POSTGRESQL_REPLICATION_PASSWORD=repl_password
+        # - POSTGRESQL_REPLICATION_MODE=master
+        # - POSTGRESQL_REPLICATION_USER=repl_user
+        # - POSTGRESQL_REPLICATION_PASSWORD=repl_password
       volumes:
         - postgres_primary_data:/bitnami/postgresql
       healthcheck:
@@ -17,26 +17,45 @@ services:
         interval: 5s
         timeout: 5s
         retries: 5
+  
+  postgres-node-2:
+      image: bitnami/postgresql:latest
+      ports:
+        - "5434:5432"
+      environment:
+        - POSTGRESQL_USERNAME=${DB_USER}
+        - POSTGRESQL_PASSWORD=${DB_PASSWORD}
+        - POSTGRESQL_DATABASE=${DB_NAME}
+        # - POSTGRESQL_REPLICATION_MODE=master
+        # - POSTGRESQL_REPLICATION_USER=repl_user
+        # - POSTGRESQL_REPLICATION_PASSWORD=repl_password
+      volumes:
+        - postgres_node2_data:/bitnami/postgresql
+      healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+        interval: 5s
+        timeout: 5s
+        retries: 5
 
-  postgres-replica:
-    image: bitnami/postgresql:latest
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      - POSTGRESQL_USERNAME=${DB_USER}
-      - POSTGRESQL_PASSWORD=${DB_PASSWORD}
-      - POSTGRESQL_REPLICATION_MODE=slave
-      - POSTGRESQL_MASTER_HOST=postgres
-      - POSTGRESQL_REPLICATION_USER=repl_user
-      - POSTGRESQL_REPLICATION_PASSWORD=repl_password
-    volumes:
-      - postgres_replica_data:/bitnami/postgresql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+  # postgres-replica:
+  #   image: bitnami/postgresql:latest
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   environment:
+  #     - POSTGRESQL_USERNAME=${DB_USER}
+  #     - POSTGRESQL_PASSWORD=${DB_PASSWORD}
+  #     - POSTGRESQL_REPLICATION_MODE=slave
+  #     - POSTGRESQL_MASTER_HOST=postgres
+  #     - POSTGRESQL_REPLICATION_USER=repl_user
+  #     - POSTGRESQL_REPLICATION_PASSWORD=repl_password
+  #   volumes:
+  #     - postgres_replica_data:/bitnami/postgresql
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+  #     interval: 5s
+  #     timeout: 5s
+  #     retries: 5
 
 
   pgbouncer:
@@ -55,6 +74,24 @@ services:
       - "6432:5432" 
     depends_on:
       - postgres
+
+  pgbouncer-node-2:
+    image: edoburu/pgbouncer:latest
+    container_name: pgbouncer-node-2
+    restart: always
+    environment:
+      DB_HOST: postgres-node-2
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 1000
+      DEFAULT_POOL_SIZE: 5
+      AUTH_TYPE: scram-sha-256 
+    ports:
+      - "6433:5432" 
+    depends_on:
+      - postgres-node-2
+
   pgadmin:
     image: dpage/pgadmin4
     profiles:
@@ -105,6 +142,19 @@ services:
         condition: service_healthy
     command: ["npx", "drizzle-kit", "push", "--force"]
 
+  migrator-node-2:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+      target: builder 
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@postgres-node-2:${DB_PORT}/${DB_NAME}
+    depends_on:
+      postgres-node-2:
+        condition: service_healthy
+    command: ["npx", "drizzle-kit", "push", "--force"]
+
+
   nginx:
     image: nginx:alpine
     ports:
@@ -127,10 +177,18 @@ services:
     depends_on:
       migrator:
         condition: service_completed_successfully
+      migrator-node-2:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
-      postgres-replica:
+      postgres-node-2:
         condition: service_healthy
+      pgbouncer:
+        condition: service_started
+      pgbouncer-node-2:
+        condition: service_started
+      # postgres-replica:
+      #   condition: service_healthy
       redis:
         condition: service_healthy
       rabbitmq:
@@ -151,10 +209,18 @@ services:
     depends_on:
       migrator:
         condition: service_completed_successfully
+      migrator-node-2:
+        condition: service_completed_successfully
       postgres:
-        condition: service_healthy 
-      postgres-replica:
         condition: service_healthy
+      postgres-node-2:
+        condition: service_healthy 
+      pgbouncer:
+        condition: service_started
+      pgbouncer-node-2:
+        condition: service_started
+      # postgres-replica:
+      #   condition: service_healthy
       redis:
         condition: service_healthy
       rabbitmq:
@@ -173,10 +239,18 @@ services:
     depends_on:
       migrator:
         condition: service_completed_successfully
+      migrator-node-2:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
-      postgres-replica:
+      postgres-node-2:
         condition: service_healthy
+      pgbouncer:
+        condition: service_started
+      pgbouncer-node-2:
+        condition: service_started
+      # postgres-replica:
+      #   condition: service_healthy
       redis:
         condition: service_healthy
       rabbitmq:
@@ -185,6 +259,7 @@ services:
 
 volumes:
   postgres_primary_data:
-  postgres_replica_data:
+  postgres_node2_data:
+  # postgres_replica_data:
   redisdata:
   rmqdata:

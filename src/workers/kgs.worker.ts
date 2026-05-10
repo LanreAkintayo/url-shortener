@@ -1,7 +1,7 @@
 import { keyPool, kgsState } from "../db/schema";
 import { sql } from "drizzle-orm";
 import Hashids from "hashids";
-import { db } from "../config/db";
+import { dbNode1 } from "../config/db";
 
 const POOL_MIN_SIZE = 10;
 const POOL_MAX_SIZE = 50;
@@ -9,11 +9,12 @@ const CHECK_INTERVAL_MS = 60000;
 
 const SECRET_SALT = process.env.HASHIDS_SALT || "default_dev_salt";
 const hashids = new Hashids(SECRET_SALT, 6);
+const TOTAL_SHARDS = Number(process.env.TOTAL_ACTIVE_SHARDS) || 2;
 
 const initKgsState = async () => {
   try {
-    await db
-      .write.insert(kgsState)
+    await dbNode1.write
+      .insert(kgsState)
       .values({
         id: 1,
         currentCounter: 1000000,
@@ -27,7 +28,9 @@ const initKgsState = async () => {
 };
 
 const getPoolSize = async (): Promise<number> => {
-  const result = await db.write.execute(sql`SELECT COUNT(*) as count FROM key_pool`);
+  const result = await dbNode1.write.execute(
+    sql`SELECT COUNT(*) as count FROM key_pool`,
+  );
   return parseInt(result.rows[0].count as string, 10);
 };
 
@@ -39,7 +42,7 @@ const refillPool = async () => {
 
     const countToGenerate = POOL_MAX_SIZE - currentSize;
 
-    const claimResult = await db.write.execute(sql`
+    const claimResult = await dbNode1.write.execute(sql`
       UPDATE kgs_state 
       SET 
         current_counter = current_counter + ${countToGenerate},
@@ -58,12 +61,16 @@ const refillPool = async () => {
     const newKeys = [];
     for (let i = 0; i < countToGenerate; i++) {
       const uniqueNumber = startingCounter + i;
-      newKeys.push({ shortCode: hashids.encode(uniqueNumber) });
+
+      const targetShardId = (uniqueNumber % TOTAL_SHARDS) + 1;
+      newKeys.push({
+        shortCode: hashids.encode([uniqueNumber, targetShardId]),
+      });
     }
 
-    await db.write.insert(keyPool).values(newKeys);
+    await dbNode1.write.insert(keyPool).values(newKeys);
     console.log(
-      `[KGS] Generated ${countToGenerate} new keys. Pool replenished.`,
+      `[KGS] Generated ${countToGenerate} new keys across ${TOTAL_SHARDS} shards. Pool replenished.`,
     );
   } catch (error) {
     console.error("[KGS] Error during pool check: ", error);

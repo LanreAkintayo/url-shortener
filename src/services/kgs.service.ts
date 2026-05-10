@@ -1,4 +1,4 @@
-import { db } from "../config/db";
+import { dbNode1 } from "../config/db"; 
 import { sql } from "drizzle-orm";
 import Hashids from "hashids";
 
@@ -6,7 +6,7 @@ const SECRET_SALT = process.env.HASHIDS_SALT || "lanre_default_salt";
 const hashids = new Hashids(SECRET_SALT, 6);
 
 /**
- * Retrieves a unique, short code.
+ * Retrieves a unique, short code from the centralized global pool.
  */
 export const getShortCode = async (): Promise<string> => {
   // Attempt to grab and remove a key from the pool atomically
@@ -21,10 +21,10 @@ export const getShortCode = async (): Promise<string> => {
     RETURNING short_code
   `;
 
-  const poolResult = await db.write.execute(poolQuery);
+  // Explicitly routing KGS queries to Node 1's write pool
+  const poolResult = await dbNode1.write.execute(poolQuery);
 
   if (poolResult.rows.length > 0) {
-    // console.log("[KGS Service] Pool hit. Remaining keys:",  );
     return poolResult.rows[0].short_code as string;
   }
 
@@ -38,7 +38,7 @@ export const getShortCode = async (): Promise<string> => {
     RETURNING current_counter
   `;
 
-  const fallbackResult = await db.write.execute(fallbackQuery);
+  const fallbackResult = await dbNode1.write.execute(fallbackQuery);
   const counterValue = Number(fallbackResult.rows[0].current_counter);
 
   return hashids.encode(counterValue);

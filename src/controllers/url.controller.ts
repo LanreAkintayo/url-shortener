@@ -3,6 +3,7 @@ import { nanoid } from "nanoid";
 import * as urlService from "../services/url.service";
 import { CreateUrlInput } from "../types/url.types";
 import { connectRabbitMQ } from "../config/rabbitmq";
+import { getShardId } from "../config/db";
 
 export const shortenUrl = async (
   req: Request,
@@ -66,16 +67,23 @@ export const redirectUrl = async (
       timestamp: new Date().toISOString(),
     };
 
-    // Push to RabbitMQ;
     try {
+      const targetShardId = getShardId(shortCode as unknown as string);
+      const queueName = `analytics_queue_${targetShardId}`;
       const channel = await connectRabbitMQ();
+
+      await channel.assertQueue(queueName, { durable: true });
+
       channel.sendToQueue(
-        "analytics_queue",
+        queueName,
         Buffer.from(JSON.stringify(analyticsPayload)),
         { persistent: true },
       );
     } catch (mqError) {
-      console.error("Failed to send analytics data to RabbitMQ:", mqError);
+      console.error(
+        `Failed to send analytics data to RabbitMQ for queue ${shortCode}:`,
+        mqError,
+      );
     }
 
     res.redirect(urlRecord.longUrl);

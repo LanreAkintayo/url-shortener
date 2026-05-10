@@ -1,26 +1,15 @@
-import { db } from "../config/db";
+import { getDbByShardId } from "../config/db";
 import { urlAnalytics } from "../db/schema";
 
-interface BatchAnalyticsData {
-  shortCodes: string[];
-  ipAddresses: string[];
-  userAgents: string[];
-  referrers: string[];
-  timestamps: string[];
-}
+type InsertAnalyticsType = typeof urlAnalytics.$inferInsert;
 
 export const logBatchAnalytics = async (
-  data: BatchAnalyticsData,
+  shardId: number,
+  data: InsertAnalyticsType[],
 ): Promise<void> => {
-  if (!data.shortCodes?.length) return;
+  if (!data || data.length === 0) return;
 
-  const analyticsPayload = data.shortCodes.map((shortCode, index) => ({
-    shortCode,
-    ipAddress: data.ipAddresses[index],
-    userAgent: data.userAgents[index],
-    referrer: data.referrers[index],
-    createdAt: data.timestamps[index],
-  }));
+  const targetDb = getDbByShardId(shardId);
 
-  await db.write.insert(urlAnalytics).values(analyticsPayload);
+  await targetDb.write.insert(urlAnalytics).values(data);
 };
