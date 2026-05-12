@@ -2,36 +2,38 @@ import app from "./app";
 import { connectRedis } from "./config/redis";
 import { startAnalyticsWorker } from "./workers/analytics.worker";
 import { startKGSWorker } from "./workers/kgs.worker";
+import { logger } from "./utils/logger";
 
 const port = process.env.PORT || 3000;
 
 const startServer = async () => {
   try {
     await connectRedis();
-    console.log("Redis connected successfully.");
 
-    // For local: false because we have docker-compose but for render: true
+    // Conditionally start background workers in the main process for monolithic deployments
     if (process.env.RUN_AS_MONOLITH === "true") {
       await startKGSWorker();
-      console.log("KGS Worker started successfully.");
-
       await startAnalyticsWorker();
-      console.log("Analytics Worker started successfully.");
     }
 
-    // Start the Express server
     const server = app.listen(port, () => {
-      console.log(`Server is running on port ${port}`);
+      logger.info({ service: "server", port }, "Server is running");
     });
 
-    process.on("SIGTERM", () => {
+    const gracefulShutdown = (signal: string) => {
+      logger.info({ service: "server", signal }, "Shutdown signal received. Closing HTTP server");
+      
       server.close(() => {
-        console.log("Server closed");
+        logger.info({ service: "server" }, "HTTP server closed cleanly");
         process.exit(0);
       });
-    });
+    };
+
+    process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+    process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+
   } catch (error) {
-    console.error("Error starting the server:", error);
+    logger.fatal({ err: error, service: "server" }, "Fatal error starting the server");
     process.exit(1);
   }
 };

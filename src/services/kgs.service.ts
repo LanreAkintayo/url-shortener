@@ -1,6 +1,7 @@
 import { dbNode1 } from "../config/db"; 
 import { sql } from "drizzle-orm";
 import Hashids from "hashids";
+import { logger } from "../utils/logger";
 
 const SECRET_SALT = process.env.HASHIDS_SALT || "lanre_default_salt";
 const hashids = new Hashids(SECRET_SALT, 6);
@@ -29,7 +30,7 @@ export const getShortCode = async (): Promise<string> => {
   }
 
   // Fallback: If pool is empty, generate one immediately from the global counter
-  console.warn("[KGS Service] Pool empty. Generating fallback key...");
+  logger.warn({ service: "kgs_service" }, "Pool empty. Generating fallback key...");
   
   const fallbackQuery = sql`
     UPDATE kgs_state 

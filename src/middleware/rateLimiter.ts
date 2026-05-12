@@ -1,41 +1,33 @@
 import { Request, Response, NextFunction } from "express";
 import redisClient from "../config/redis";
+import { logger } from "../utils/logger";
 
-// You can only send 10 requests per minute from the same IP address
-const RATE_LIMIT_WINDOW_MS = 30 * 1000; // 1 minute
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const MAX_REQUESTS_PER_WINDOW = 10;
 
+/**
+ * Sliding window rate limiter middleware using Redis sorted sets.
+ * Fails open (allows the request) if Redis is unreachable to prevent cascading system failures.
+ */
 export const rateLimiter = async (
   req: Request,
   res: Response,
   next: NextFunction,
 ) => {
   try {
-    // Let's get the ip address of the client
     const ip = req.ip || req.socket.remoteAddress || "unknown";
     const key = `rate_limit:${ip}`;
     const now = Date.now();
     const windowStart = now - RATE_LIMIT_WINDOW_MS;
 
-    // Let's open one atomic pipeline
     const multi = redisClient.multi();
 
-    // Remove timestamps that are outside the current window
     multi.zRemRangeByScore(key, 0, windowStart);
-
-    // Add the new entry. Entry has to be unique
     multi.zAdd(key, { score: now, value: `${now}-${Math.random()}` });
-
-    // Get the count of requests in the current window
     multi.zCard(key);
-
-    // Get the oldest valid entry in the window
     multi.zRange(key, 0, 0);
-
-    // Set expiration for the key to to avoid memory leaks
     multi.expire(key, RATE_LIMIT_WINDOW_MS / 1000);
 
-    // Execute the pipeline
     const results = await multi.exec();
 
     if (!results) {
@@ -46,13 +38,19 @@ export const rateLimiter = async (
     const oldestEntry = results[3] as unknown as string[];
 
     if (requestCount > MAX_REQUESTS_PER_WINDOW) {
-      let resetTimeInSeconds = 60; // Default to 60 seconds.
+      let resetTimeInSeconds = 60;
+      
       if (oldestEntry.length && oldestEntry.length > 0) {
         const oldestTimestamp = parseInt(oldestEntry[0].split("-")[0]);
-         resetTimeInSeconds = Math.ceil(
+        resetTimeInSeconds = Math.ceil(
           (oldestTimestamp + RATE_LIMIT_WINDOW_MS - now) / 1000,
         );
       }
+
+      logger.warn(
+        { ip, requestCount, limit: MAX_REQUESTS_PER_WINDOW, service: "rate_limiter" },
+        "Rate limit exceeded"
+      );
 
       res.setHeader("X-RateLimit-Limit", MAX_REQUESTS_PER_WINDOW);
       res.setHeader("X-RateLimit-Remaining", 0);
@@ -74,8 +72,10 @@ export const rateLimiter = async (
 
     next();
   } catch (error) {
-    console.error("Error in rate limiter middleware: ", error);
-    // In case of an error in the rate limiter, we don't want to block the request. We log the error and allow the request to proceed.
+    logger.error(
+      { err: error, service: "rate_limiter" },
+      "Rate limiter execution failed. Bypassing restriction."
+    );
     next();
   }
 };

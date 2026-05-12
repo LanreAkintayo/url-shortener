@@ -3,71 +3,125 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import * as schema from "../db/schema";
 import dotenv from "dotenv";
 import Hashids from "hashids";
+import { logger } from "../utils/logger";
 
 dotenv.config();
 
 const SECRET_SALT = process.env.HASHIDS_SALT || "lanre_default_salt";
 const hashids = new Hashids(SECRET_SALT, 6);
 
-const poolNode1 = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  max: 20,
-});
+/**
+ * Initializes a database shard connection with read-write splitting.
+ * Defaults to the primary connection for read operations if a replica URL is not provided.
+ */
+const createShardConnection = (
+  shardId: number,
+  writeConnectionString?: string | null,
+  readConnectionString?: string | null,
+) => {
+  if (!writeConnectionString) {
+    logger.fatal(
+      { shardId, service: "db" },
+      "Missing primary database connection string",
+    );
+    process.exit(1);
+  }
 
-// In production, read will be a replica_database and write to poolNode1
-export const dbNode1 = {
-  write: drizzle(poolNode1, { schema }),
-  read: drizzle(poolNode1, { schema }),
+  const writePool = new Pool({
+    connectionString: writeConnectionString,
+    max: 20,
+  });
+
+  writePool.on("connect", () =>
+    logger.info(
+      { shardId, nodeType: "primary", service: "db" },
+      "Primary DB connection established",
+    ),
+  );
+
+  writePool.on("error", (err) => {
+    logger.fatal(
+      { err, shardId, nodeType: "primary", service: "db" },
+      "Primary DB connection error",
+    );
+    process.exit(-1);
+  });
+
+  let readPool = writePool;
+
+  if (readConnectionString?.trim()) {
+    readPool = new Pool({ connectionString: readConnectionString, max: 20 });
+
+    readPool.on("connect", () =>
+      logger.info(
+        { shardId, nodeType: "replica", service: "db" },
+        "Replica DB connection established",
+      ),
+    );
+
+    readPool.on("error", (err) => {
+      logger.error(
+        { err, shardId, nodeType: "replica", service: "db" },
+        "Replica DB connection error",
+      );
+    });
+  }
+
+  return {
+    write: drizzle(writePool, { schema }),
+    read: drizzle(readPool, { schema }),
+  };
 };
 
-const poolNode2 = new Pool({
-  connectionString: process.env.NODE2_DATABASE_URL,
-  max: 20,
-});
+export const dbNode1 = createShardConnection(1, process.env.DATABASE_URL, null);
 
-export const dbNode2 = {
-  write: drizzle(poolNode2, { schema }),
-  read: drizzle(poolNode2, { schema }),
-};
-
-poolNode1.on("connect", () =>
-  console.log("[Shard 1] DB connection established"),
-);
-poolNode2.on("connect", () =>
-  console.log("[Shard 2] DB connection established"),
+export const dbNode2 = createShardConnection(
+  2,
+  process.env.NODE2_DATABASE_URL,
+  null,
 );
 
-poolNode1.on("error", (err) => {
-  console.error(`[Shard 1] Connection error:`, err);
-  process.exit(-1);
-});
-
-poolNode2.on("error", (err) => {
-  console.error(`[Shard 2] Connection error:`, err);
-  process.exit(-1);
-});
+const shardMap = new Map([
+  [1, dbNode1],
+  [2, dbNode2],
+]);
 
 export const getShardId = (shortCode: string): number => {
   const decoded = hashids.decode(shortCode);
-  console.log("Decoded short code: ", decoded);
+
+  logger.debug({ shortCode, decoded, service: "db" }, "Decoding short code");
 
   if (!decoded || decoded.length === 0) {
-    console.warn(`[Router] Invalid code ${shortCode}. Defaulting to Shard 1.`);
+    logger.warn(
+      { shortCode, service: "db" },
+      "Invalid code. Defaulting to Shard 1.",
+    );
     return 1;
   }
 
   const explicitlySavedShardId = Number(decoded[1]);
-  console.log("Explicitly saved shard ID: ", explicitlySavedShardId);
-  
   return explicitlySavedShardId || 1;
 };
 
 export const getDbByShardId = (shardId: number) => {
-  return shardId === 2 ? dbNode2 : dbNode1;
+  const db = shardMap.get(shardId);
+
+  if (!db) {
+    logger.error(
+      { shardId, service: "db" },
+      "Requested shard does not exist. Defaulting to Shard 1.",
+    );
+    return dbNode1;
+  }
+
+  return db;
 };
 
 export const getDbShard = (shortCode: string) => {
   const shardId = getShardId(shortCode);
-  console.log("Shard ID: ", shardId);
+  logger.debug(
+    { shortCode, shardId, service: "db" },
+    "Routing to database shard",
+  );
   return getDbByShardId(shardId);
 };

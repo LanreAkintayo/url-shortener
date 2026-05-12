@@ -2,6 +2,7 @@ import { keyPool, kgsState } from "../db/schema";
 import { sql } from "drizzle-orm";
 import Hashids from "hashids";
 import { dbNode1 } from "../config/db";
+import { logger } from "../utils/logger";
 
 const POOL_MIN_SIZE = 1;
 const POOL_MAX_SIZE = 5;
@@ -22,7 +23,10 @@ const initKgsState = async () => {
       })
       .onConflictDoNothing();
   } catch (error) {
-    console.error("[KGS] Failed to initialize state: ", error);
+    logger.fatal(
+      { err: error, service: "kgs_worker" },
+      "Failed to initialize state",
+    );
     throw error;
   }
 };
@@ -37,7 +41,7 @@ const getPoolSize = async (): Promise<number> => {
 const refillPool = async () => {
   try {
     const currentSize = await getPoolSize();
-    console.log("[KGS] Current pool size::", currentSize);
+    logger.debug({ currentSize, service: "kgs_worker" }, "Pool size check");
     if (currentSize >= POOL_MIN_SIZE) return;
 
     const countToGenerate = POOL_MAX_SIZE - currentSize;
@@ -69,28 +73,32 @@ const refillPool = async () => {
     }
 
     await dbNode1.write.insert(keyPool).values(newKeys);
-    console.log(
-      `[KGS] Generated ${countToGenerate} new keys across ${TOTAL_SHARDS} shards. Pool replenished.`,
+    logger.info(
+      { countToGenerate, shards: TOTAL_SHARDS, service: "kgs_worker" },
+      "Pool replenished",
     );
   } catch (error) {
-    console.error("[KGS] Error during pool check: ", error);
+    logger.error({ err: error, service: "kgs_worker" }, "Pool refill failed");
   }
 };
 
 export const startKGSWorker = async (): Promise<void> => {
-  console.log("[KGS] Worker starting...");
-
+  logger.info({service: "kgs_worker"}, "Worker starting..")
+  
   await initKgsState();
-  console.log("[KGS] State initialized.");
+  
+  logger.info({service: "kgs_worker"}, "State Initialized")
 
   await refillPool();
-  console.log("[KGS] Pool refilled.");
+
+  logger.info({service: "kgs_worker"}, "Pool refilled")
+
   setInterval(refillPool, CHECK_INTERVAL_MS);
 };
 
 if (require.main === module) {
   startKGSWorker().catch((error) => {
-    console.error("[KGS] Worker failed to start:", error);
+    logger.fatal({ err: error, service: "kgs_worker" }, "Worker failed to start");
     process.exit(1);
   });
 }

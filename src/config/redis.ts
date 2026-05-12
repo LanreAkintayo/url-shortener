@@ -1,4 +1,8 @@
 import { createClient } from "redis";
+import dotenv from "dotenv";
+import { logger } from "../utils/logger";
+
+dotenv.config();
 
 const REDIS_URL =
   process.env.NODE_ENV === "production"
@@ -10,20 +14,24 @@ const redisClient = createClient({
 });
 
 redisClient.on("error", (err) => {
-  console.error("[Redis] Redis Client Error", err);
+  logger.error({ err, service: "redis" }, "Redis client error");
 });
 
 redisClient.on("connect", () => {
-  console.log("[Redis] Connected to Redis");
+  logger.info({ service: "redis" }, "Connected to Redis");
 });
 
-export const connectRedis = async () => {
+/**
+ * Establishes a connection to the Redis instance if one is not already open.
+ * Terminates the process if the initial connection fails.
+ */
+export const connectRedis = async (): Promise<void> => {
   try {
     if (!redisClient.isOpen) {
       await redisClient.connect();
     }
   } catch (error) {
-    console.error("[Redis] Failed to connect to Redis", error);
+    logger.fatal({ err: error, service: "redis" }, "Failed to connect to Redis");
     process.exit(1);
   }
 };

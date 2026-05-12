@@ -4,6 +4,7 @@ import * as urlService from "../services/url.service";
 import { CreateUrlInput } from "../types/url.types";
 import { connectRabbitMQ } from "../config/rabbitmq";
 import { getShardId } from "../config/db";
+import { logger } from "../utils/logger";
 
 export const shortenUrl = async (
   req: Request,
@@ -11,7 +12,6 @@ export const shortenUrl = async (
   next: NextFunction,
 ) => {
   try {
-    // The longUrl has been validated by zod
     const body = req.body as CreateUrlInput;
 
     const longUrl = body.longUrl;
@@ -22,8 +22,13 @@ export const shortenUrl = async (
       process.env.NODE_ENV === "production"
         ? process.env.SHORTENER_URL
         : process.env.BASE_URL || "http://localhost:8080";
-    // const baseUrl = process.env.BASE_URL || "http://localhost:3000";
+        
     const fullShortUrl = `${baseUrl}/${newUrl.shortCode}`;
+
+    logger.info(
+      { shortUrl: fullShortUrl, action: "shorten_url", service: "api" },
+      "URL shortened successfully",
+    );
 
     res.status(201).json({
       status: "success",
@@ -36,6 +41,10 @@ export const shortenUrl = async (
       },
     });
   } catch (error) {
+    logger.error(
+      { err: error, action: "shorten_url", service: "api" },
+      "Failed to shorten URL",
+    );
     next(error);
   }
 };
@@ -48,10 +57,19 @@ export const redirectUrl = async (
   try {
     const { shortCode } = req.params;
 
-    console.log("Short code received for redirection: ", shortCode);
+    logger.debug(
+      { shortCode, service: "api" },
+      "Short code received for redirection",
+    );
+
     const urlRecord = await urlService.getUrlByShortCode(shortCode);
 
     if (!urlRecord?.longUrl) {
+      logger.warn(
+        { shortCode, action: "redirect_not_found", service: "api" },
+        "URL not found",
+      );
+
       res.status(404).json({
         status: "error",
         message: "URL not found",
@@ -80,15 +98,18 @@ export const redirectUrl = async (
         { persistent: true },
       );
     } catch (mqError) {
-      console.error(
-        `Failed to send analytics data to RabbitMQ for queue ${shortCode}:`,
-        mqError,
+      logger.error(
+        { err: mqError, shortCode, service: "api" },
+        "Failed to send analytics data to RabbitMQ",
       );
     }
 
     res.redirect(urlRecord.longUrl);
   } catch (error) {
-    console.log("An error happened: ", error);
+    logger.error(
+      { err: error, shortCode: req.params.shortCode, service: "api" },
+      "Fatal error during redirection",
+    );
     next(error);
   }
 };
@@ -104,6 +125,11 @@ export const updateUrl = async (
 
     const updatedUrl = await urlService.updateOriginalUrl(shortCode, longUrl);
 
+    logger.info(
+      { shortCode, action: "update_url", service: "api" },
+      "URL updated successfully",
+    );
+
     return res.status(200).json({
       status: "success",
       message: "URL updated successfully",
@@ -115,6 +141,15 @@ export const updateUrl = async (
       },
     });
   } catch (error) {
+    logger.error(
+      {
+        err: error,
+        shortCode: req.params.shortCode,
+        action: "update_url",
+        service: "api",
+      },
+      "Failed to update URL",
+    );
     next(error);
   }
 };
@@ -129,11 +164,25 @@ export const removeUrl = async (
 
     await urlService.deleteUrl(shortCode);
 
+    logger.info(
+      { shortCode, action: "remove_url", service: "api" },
+      "URL removed successfully"
+    );
+
     return res.status(200).json({
       status: "success",
       message: "URL removed successfully",
     });
   } catch (error) {
+    logger.error(
+      {
+        err: error,
+        shortCode: req.params.shortCode,
+        action: "remove_url",
+        service: "api",
+      },
+      "Failed to remove URL",
+    );
     next(error);
   }
 };

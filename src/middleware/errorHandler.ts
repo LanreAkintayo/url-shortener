@@ -1,9 +1,14 @@
 import { Request, Response, NextFunction } from "express";
+import { logger } from "../utils/logger";
 
-interface AppError extends Error {
-  statusCode: number;
+export interface AppError extends Error {
+  statusCode?: number;
 }
 
+/**
+ * Global error handling middleware.
+ * Intercepts unhandled exceptions, logs structured error data, and formats the client response.
+ */
 export const errorHandler = (
   error: AppError,
   req: Request,
@@ -13,16 +18,20 @@ export const errorHandler = (
   const statusCode = error.statusCode || 500;
   const message = error.message || "Internal Server Error";
 
-  if (process.env.NODE_ENV !== "production") {
-    console.error(`[Error] ${req.method} ${req.originalUrl} - ${message}`);
-    console.error(error.stack);
-  } else {
-    console.error(`[Error] ${req.method} ${req.originalUrl} - ${message}`);
-  }
+  logger.error(
+    {
+      err: error,
+      method: req.method,
+      url: req.originalUrl,
+      statusCode,
+      service: "error_handler",
+    },
+    "Application error intercepted"
+  );
 
-    res.status(statusCode).json({
-        status: "error",
-        message,
-        ...(process.env.NODE_ENV !== "production" && { stack: error.stack }),
-    })
+  res.status(statusCode).json({
+    status: "error",
+    message,
+    ...(process.env.NODE_ENV !== "production" && { stack: error.stack }),
+  });
 };

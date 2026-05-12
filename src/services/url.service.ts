@@ -3,6 +3,7 @@ import redisClient from "../config/redis";
 import { urls } from "../db/schema";
 import { getShortCode } from "./kgs.service";
 import { eq } from "drizzle-orm";
+import { logger } from "../utils/logger";
 
 export const createShortUrl = async (longUrl: string) => {
   const shortCode = await getShortCode();
@@ -28,8 +29,11 @@ export const getUrlByShortCode = async (shortCode: string | string[]) => {
   const cachedUrl = await redisClient.get(`url:${code}`);
 
   if (cachedUrl) {
+    logger.debug({ shortCode: code, cache: "hit", service: "url_service" }, "Redis cache hit");
     return { longUrl: cachedUrl };
   }
+
+  logger.debug({ shortCode: code, cache: "miss", service: "url_service" }, "Redis cache miss");
 
   const targetDb = getDbShard(code);
 
@@ -68,8 +72,8 @@ export const updateOriginalUrl = async (
     throw new Error("URL not found");
   }
 
-  // Invalidate cache
   await redisClient.del(`url:${code}`);
+  logger.debug({ shortCode: code, action: "cache_invalidate", service: "url_service" }, "Redis cache invalidated");
 
   return updatedUrlRecord;
 };
@@ -88,8 +92,8 @@ export const deleteUrl = async (shortCode: string | string[]) => {
     throw new Error("URL not found");
   }
 
-  // Invalidate cache
   await redisClient.del(`url:${code}`);
+  logger.debug({ shortCode: code, action: "cache_invalidate", service: "url_service" }, "Redis cache invalidated");
 
   return true;
 };
