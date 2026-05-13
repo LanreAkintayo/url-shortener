@@ -29,7 +29,7 @@ export const getShortCode = async (): Promise<string> => {
     return poolResult.rows[0].short_code as string;
   }
 
-  // Fallback: If pool is empty, generate one immediately from the global counter
+  // Fallback: If pool is empty, generate one immediately from the global counter.
   logger.warn({ service: "kgs_service" }, "Pool empty. Generating fallback key...");
   
   const fallbackQuery = sql`
