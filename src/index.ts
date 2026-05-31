@@ -10,7 +10,7 @@ const startServer = async () => {
   try {
     await connectRedis();
 
-    // Conditionally start background workers in the main process for monolithic deployments
+    // Conditionally start background workers in the main process for monolithic deployments..
     if (process.env.RUN_AS_MONOLITH === "true") {
       await startKGSWorker();
       await startAnalyticsWorker();
