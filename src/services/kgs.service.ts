@@ -22,7 +22,7 @@ export const getShortCode = async (): Promise<string> => {
     RETURNING short_code
   `;
 
-  // Explicitly routing KGS queries to Node 1's write pool
+  // Explicitly routing KGS queries to Node 1's write pool...
   const poolResult = await dbNode1.write.execute(poolQuery);
 
   if (poolResult.rows.length > 0) {
